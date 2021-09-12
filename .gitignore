@@ -1,0 +1,8 @@
+*.dll
+*.o
+*.obj
+*.so
+*.exp
+*.lib
+*.def
+.vscode/**
