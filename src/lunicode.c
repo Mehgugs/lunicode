@@ -8,6 +8,8 @@
 #include <stddef.h>
 #include <string.h>
 
+#define all_good(x) ((0 <= (x) && (x) <= 0x10FFFF) && utf8proc_codepoint_valid((x)))
+
 static int lunicode_error(lua_State* L, utf8proc_ssize_t code) {
     return luaL_error(L, "lunicode: utf8proc error: %s", utf8proc_errmsg(code));
 }
@@ -159,7 +161,7 @@ static int lunicode_normalize(lua_State* L) {
 static int lunicode_category(lua_State* L) {
     lua_Integer i = luaL_checkinteger(L, 1);
 
-    if ((0 <= i && i <= 0x10FFFF) && utf8proc_codepoint_valid(i)) {
+    if (all_good(i)) {
         lua_pushinteger(L, utf8proc_category(i));
     } else {
         return luaL_error(L, "lunicode.category: Invalid codepoint %d", i);
@@ -171,7 +173,7 @@ static int lunicode_category(lua_State* L) {
 static int lunicode_category_string(lua_State* L) {
     lua_Integer i = luaL_checkinteger(L, 1);
 
-    if ((0 <= i && i <= 0x10FFFF) && utf8proc_codepoint_valid(i)) {
+    if (all_good(i)) {
         lua_pushlstring(L, utf8proc_category_string(i), 2);
     } else {
         return luaL_error(L, "lunicode.category: Invalid codepoint %d", i);
@@ -180,12 +182,135 @@ static int lunicode_category_string(lua_State* L) {
     return 1;
 }
 
+static int lunicode_grapheme_break(lua_State* L) {
+    lua_Integer i = luaL_checkinteger(L, 1);
+    lua_Integer j = luaL_checkinteger(L, 2);
+    lua_Integer s = luaL_checkinteger(L, 3, 0);
+    if (all_good(i) && all_good(j)) {
+
+        utf8proc_bool out = utf8proc_grapheme_break_stateful(i, j, &s);
+        lua_pushboolean(L, out);
+        lua_pushinteger(L, s);
+        return 2;
+    } else {
+        return luaL_error(L, "lunicode.grapheme_break: Invalid codepoints %d %d", i, j);
+    }
+}
+
+static int lunicode_properties(lua_State* L) {
+    lua_Integer i = luaL_checkinteger(L, 1);
+    if (all_good(i)) {
+        utf8proc_property_t* props = utf8proc_get_property(i);
+
+        lua_createtable(L, 0, 10);
+
+        lua_pushliteral(L, "category");
+        lua_pushinteger(L, props->category);
+        lua_settable(L, -3);
+
+        lua_pushliteral(L, "combining_class");
+        lua_pushinteger(L, props->combining_class);
+        lua_settable(L, -3);
+
+        lua_pushliteral(L, "bidi_class");
+        lua_pushinteger(L, props->bidi_class);
+        lua_settable(L, -3);
+
+        lua_pushliteral(L, "mirrored");
+        lua_pushboolean(L, props->bidi_mirrored);
+        lua_settable(L, -3);
+
+        lua_pushliteral(L, "ignorable");
+        lua_pushboolean(L, props->ignorable);
+        lua_settable(L, -3);
+
+        lua_pushliteral(L, "control_boundary");
+        lua_pushboolean(L, props->control_boundary);
+        lua_settable(L, -3);
+
+        lua_pushliteral(L, "charwidth");
+        lua_pushinteger(L, props->charwidth);
+        lua_settable(L, -3);
+
+        lua_pushliteral(L, "pad");
+        lua_pushinteger(L, props->pad);
+        lua_settable(L, -3);
+
+        lua_pushliteral(L, "boundclass");
+        lua_pushinteger(L, props->boundclass);
+        lua_settable(L, -3);
+
+        return 1;
+    } else {
+        return luaL_error(L, "lunicode.properties: Invalid codepoint %0x", i);
+    }
+}
+
+static int lunicode_property(lua_State* L) {
+    lua_Integer i = luaL_checkinteger(L, 1);
+
+    static const char* OPTIONS[] = {
+        "category",
+        "combining_class",
+        "bidi_class",
+        "mirrored",
+        "ignorable",
+        "control_boundary",
+        "charwidth",
+        "pad",
+        "boundclass",
+        "_missing", NULL};
+
+
+    if (all_good(i)) {
+        int idx = luaL_checkoption(L, 2, OPTIONS[9], &OPTIONS);
+        utf8proc_property_t* props = utf8proc_get_property(i);
+
+        switch (idx) {
+            default:
+            case 9:
+            case 0:
+                lua_pushinteger(L, props->category);
+                return 1;
+            case 1:
+                lua_pushinteger(L, props->combining_class);
+                return 1;
+            case 2:
+                lua_pushinteger(L, props->bidi_class);
+                return 1;
+            case 3:
+                lua_pushboolean(L, props->bidi_mirrored);
+                return 1;
+            case 4:
+                lua_pushboolean(L, props->ignorable);
+                return 1;
+            case 5:
+                lua_pushboolean(L, props->control_boundary);
+                return 1;
+            case 6:
+                lua_pushinteger(L, props->charwidth);
+                return 1;
+            case 7:
+                lua_pushinteger(L, props->pad);
+                return 1;
+            case 8:
+                lua_pushinteger(L, props->boundclass);
+                return 1;
+        }
+    } else {
+        return luaL_error(L, "lunicode.property: Invalid codepoint %0x", i);
+    }
+}
+
 static const luaL_Reg lunicode_methods[] = {
     {"valid", lunicode_isvalid},
     {"map", lunicode_map},
     {"normalize", lunicode_normalize},
     {"category", lunicode_category},
     {"category_string", lunicode_category_string},
+    {"grapheme_break", lunicode_grapheme_break},
+    {"properties", lunicode_properties},
+    {"property", lunicode_property},
     {NULL, NULL}
 };
 
