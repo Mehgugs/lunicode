@@ -7,3 +7,5 @@
 *.def
 .vscode/**
 test/**
+zig-cache/**
+zig-out/**

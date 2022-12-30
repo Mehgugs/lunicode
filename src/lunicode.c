@@ -1,12 +1,12 @@
-#include <lua.h>
-#include <luaconf.h>
-#include <lauxlib.h>
 #include <stdbool.h>
 #include <limits.h>
-#include <utf8proc.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
+#include "lua.h"
+#include "luaconf.h"
+#include "lauxlib.h"
+#include "utf8proc.h"
 
 #define all_good(x) ((0 <= (x) && (x) <= 0x10FFFF) && utf8proc_codepoint_valid((x)))
 
@@ -93,8 +93,12 @@ static utf8proc_option_t lunicode_check_options(lua_State* L, int arg) {
 }
 
 static int lunicode_map2(lua_State* L, utf8proc_option_t options) {
-    utf8proc_ssize_t size;
-    const char* str = luaL_checklstring(L, 1, &size);
+    size_t size;
+    utf8proc_uint8_t* str = (utf8proc_uint8_t*)luaL_checklstring(L, 1, &size);
+    utf8proc_ssize_t ssize;
+
+    if (size > PTRDIFF_MAX) ssize = PTRDIFF_MAX;
+    else ssize = size;
 
     utf8proc_ssize_t numwords = utf8proc_decompose(str, size, NULL, 0, options);
 
@@ -108,7 +112,7 @@ static int lunicode_map2(lua_State* L, utf8proc_option_t options) {
 
     utf8proc_ssize_t initial_bytes = numwords * 4;
 
-    char* space = luaL_prepbuffsize(&b, initial_bytes);
+    utf8proc_int32_t* space = (utf8proc_int32_t*)luaL_prepbuffsize(&b, initial_bytes);
 
     numwords = utf8proc_decompose(str, size, space, numwords, options);
 
@@ -185,7 +189,7 @@ static int lunicode_category_string(lua_State* L) {
 static int lunicode_grapheme_break(lua_State* L) {
     lua_Integer i = luaL_checkinteger(L, 1);
     lua_Integer j = luaL_checkinteger(L, 2);
-    lua_Integer s = luaL_checkinteger(L, 3, 0);
+    utf8proc_uint32_t s = (utf8proc_uint32_t)luaL_optinteger(L, 3, 0);
     if (all_good(i) && all_good(j)) {
 
         utf8proc_bool out = utf8proc_grapheme_break_stateful(i, j, &s);
@@ -200,7 +204,7 @@ static int lunicode_grapheme_break(lua_State* L) {
 static int lunicode_properties(lua_State* L) {
     lua_Integer i = luaL_checkinteger(L, 1);
     if (all_good(i)) {
-        utf8proc_property_t* props = utf8proc_get_property(i);
+        const utf8proc_property_t* props = utf8proc_get_property(i);
 
         lua_createtable(L, 0, 10);
 
@@ -261,9 +265,8 @@ static int lunicode_property(lua_State* L) {
         "boundclass",
         "_missing", NULL};
 
-
     if (all_good(i)) {
-        int idx = luaL_checkoption(L, 2, OPTIONS[9], &OPTIONS);
+        int idx = luaL_checkoption(L, 2, OPTIONS[9], OPTIONS);
         utf8proc_property_t* props = utf8proc_get_property(i);
 
         switch (idx) {
@@ -314,7 +317,7 @@ static const luaL_Reg lunicode_methods[] = {
     {NULL, NULL}
 };
 
-LUALIB_API int luaopen_lunicode(lua_State* L) {
+LUA_API int luaopen_lunicode(lua_State* L) {
     luaL_newlib(L, lunicode_methods);
 
     lua_pushliteral(L, "metadata");
