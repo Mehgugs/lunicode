@@ -2,8 +2,6 @@
 
 Lua bindings to utf8proc.
 
-## You will need to build utf8proc and make it available on your machine!
-
 ### More functions will be added as I need them.
 
 ### Reference
