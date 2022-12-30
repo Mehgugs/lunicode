@@ -2,18 +2,9 @@ const std = @import("std");
 
 // Type helpers
 const String     = []const u8;
-const StringPair = [2]String;
-const SourceList = std.ArrayList(String);
 const FlagList   = std.ArrayList(String);
-fn SliceOf(comptime t: type) type {
-    return []const t;
-}
-
 //builder
 const Builder = std.build.Builder;
-const Step    = std.build.Step;
-const InstallDir = std.build.InstallDir;
-const Artifact = *std.build.LibExeObjStep;
 
 pub fn build(b: *Builder) !void {
     const art = b.addSharedLibrary("lunicode", null, .unversioned);
